@@ -1,8 +1,7 @@
-from dotenv import load_dotenv
 import google.generativeai as genai
-import os
-from .models import ChatMessage, ChatThread
+from .models import ChatMessage, ChatThread, UserUsage
 from .llm_router import get_llm_response
+from django.utils import timezone
 
 def generate_title_for_thread(thread_id):
     thread = ChatThread.objects.get(id=thread_id)
@@ -28,3 +27,22 @@ Title:"""
         thread.save()
     except Exception as e:
         print(f"Title generation failed: {e}")
+
+def check_user_quota(user):
+    usage, _ = UserUsage.objects.get_or_create(user=user)
+    
+    # Reset daily
+    if usage.last_reset != timezone.now().date():
+        usage.tokens_used = 0
+        usage.last_reset = timezone.now().date()
+        usage.save()
+
+    # Enforce quota
+    if usage.tokens_used > 10000:
+        return False
+    return True
+
+def increment_user_tokens(user, tokens_used):
+    usage, _ = UserUsage.objects.get_or_create(user=user)
+    usage.tokens_used += tokens_used
+    usage.save()

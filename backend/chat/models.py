@@ -1,5 +1,6 @@
 from django.db import models
 from users.models import CustomUser
+from django.utils import timezone
 
 # Create your models here.
 
@@ -26,3 +27,11 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         return f"{self.user.username} ({self.model}): {self.message[:30]}"
+    
+class UserUsage(models.Model):
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+    tokens_used = models.IntegerField(default=0)
+    last_reset = models.DateField(default=timezone.now)
+
+    def __str__(self):
+        return f"{self.user.username} Usage"

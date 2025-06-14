@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import ChatMessage, ChatThread
 from .serializers import ChatMessageSerializer, ChatThreadSearializer
-from .utils import generate_title_for_thread
+from .utils import generate_title_for_thread, check_user_quota, increment_user_tokens
 from .llm_router import get_llm_response
 
 # Create your views here.
@@ -32,7 +32,15 @@ def chat_view(request):
                 thread_id = thread.id
                 
             try:
+                if not check_user_quota(request.user):
+                    return Response({"error": "Daily quota exceeded."}, status=429)
+                
                 llm_response = get_llm_response(model, prompt)
+
+                tokens_used = len(prompt.split()) + len(llm_response.split())
+                increment_user_tokens(request.user, tokens_used)
+
+                print(f"[LLM CALL] user={request.user.username} model={model} prompt={prompt[:50]}...")
             except Exception as e:
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

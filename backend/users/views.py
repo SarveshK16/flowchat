@@ -3,12 +3,12 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from .models import CustomUser
 from rest_framework import status
+from django.http import JsonResponse
 
 # Create your views here.
 
-@api_view(["GET"])
-def healthCheck(request):
-    return Response({"message":"Health - OK"})
+def health_check(request):
+    return JsonResponse({"status": "ok"})
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])

@@ -11,6 +11,9 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def get_llm_response(model, prompt):
+    if os.getenv("LLM_ENABLED", "True").lower() != "true":
+        raise Exception("LLM usage is currently disabled by admin.")
+
     if model.startswith("gemini"):
         gemini_model = genai.GenerativeModel(model_name=model)
         response = gemini_model.generate_content(prompt)

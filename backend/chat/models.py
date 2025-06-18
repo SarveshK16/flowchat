@@ -14,7 +14,8 @@ class ChatThread(models.Model):
 
 class ChatMessage(models.Model):
     MODEL_CHOICES = [
-        ('gpt-4o', 'GPT 4o'),
+        ('gpt-4.1-mini', 'GPT 4.1 Mini'),
+        ('gpt-3.5-turbo', 'GPT 3.5 Turbo'),
         ('gemini-2.5-flash', 'Gemini 2.5 Flash'),
         ("gemini-2.0-flash", "Gemini 2.0 Flash")
     ]

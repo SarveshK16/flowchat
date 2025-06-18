@@ -1,47 +1,40 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Plus, Trash2, Sun, Moon, MessageCircle, User, Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { Send, Plus, Trash2, Sun, Moon, MessageCircle, User, Lock, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios'; 
+import Toastify from 'toastify-js';
+import 'toastify-js/src/toastify.css';
 
-// Ensure your Tailwind CSS is correctly set up, either via a CDN link in your public/index.html
-// or by configuring your build tools (like Vite's PostCSS setup) to process your global CSS.
+const API_BASE = import.meta.env.VITE_API_BASE;
 
-const API_BASE = 'http://localhost:8000/api';
-
-// Brand name: FlowChat
 const App = () => {
   const [darkMode, setDarkMode] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showLogin, setShowLogin] = useState(true); // State to toggle between login/signup form
+  const [showLogin, setShowLogin] = useState(true);
   const [threads, setThreads] = useState([]);
   const [activeThread, setActiveThread] = useState(null);
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
-  const [isLoading, setIsLoading] = useState(false); // For messages and auth operations (sending message)
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false); // New state for loading messages for a thread
-  const [user, setUser] = useState(null); // Stores user details after authentication
-  const [showPassword, setShowPassword] = useState(false); // Toggle password visibility
+  const [isLoading, setIsLoading] = useState(false); 
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false); 
+  const [user, setUser] = useState(null); 
+  const [showPassword, setShowPassword] = useState(false);
   
-  // Auth form state, matching the available input fields in the UI
   const [authForm, setAuthForm] = useState({
     username: '',
     password: '',
   });
   
-  const messagesEndRef = useRef(null); // Ref for auto-scrolling chat messages
-  const models = ['gemini-2.0-flash', 'gpt-4o', 'gpt-o4']; // Available AI models
-
-  // Function to scroll to the bottom of the messages container
+  const messagesEndRef = useRef(null); 
+  const models = ['gemini-2.0-flash', 'gpt-4.1-mini', 'gpt-3.5-turbo']; 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Effect to scroll to bottom whenever messages array changes
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // Effect to check for existing authentication token on app load
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     if (token) {
@@ -50,14 +43,49 @@ const App = () => {
       if (storedUsername) {
         setUser({ username: storedUsername });
       }
-      fetchThreads(); // Fetch threads for the authenticated user
+      fetchThreads();
     }
-  }, []); // Runs once on component mount
+  }, []); 
 
-  // Custom message display function (replaces alert for better UX)
-  const showCustomMessage = (message) => {
-    // In a real application, replace this with a modal, toast notification, etc.
-    alert(message); // Using alert as per previous code
+   const showCustomMessage = (message, type = 'info') => {
+    let backgroundColor;
+    let toastColorClass;
+
+    switch (type) {
+      case 'success':
+        backgroundColor = 'linear-gradient(to right, #4CAF50, #8BC34A)';
+        toastColorClass = 'text-white';
+        break;
+      case 'error':
+        backgroundColor = 'linear-gradient(to right, #F44336, #E57373)';
+        toastColorClass = 'text-white';
+        break;
+      case 'warning':
+        backgroundColor = 'linear-gradient(to right, #FFC107, #FFEB3B)'; 
+        toastColorClass = 'text-gray-800';
+        break;
+      case 'info':
+      default:
+        backgroundColor = 'linear-gradient(to right, #2196F3, #64B5F6)';
+        toastColorClass = 'text-white';
+        break;
+    }
+
+    Toastify({
+      text: message,
+      duration: 3000, 
+      newWindow: true, 
+      close: true, 
+      gravity: "top", 
+      position: "right", 
+      stopOnFocus: true,
+      style: {
+        background: backgroundColor,
+        color: toastColorClass === 'text-gray-800' ? '#333' : '#fff', 
+      },
+      className: `font-inter ${toastColorClass}`,
+      onClick: function(){} // Callback after click
+    }).showToast();
   };
 
   // Handles both login and signup based on the isSignup flag
@@ -72,12 +100,12 @@ const App = () => {
         });
 
         if (signupResponse.status === 200 || signupResponse.status === 201) {
-          showCustomMessage('Signup successful! Please log in.');
+          showCustomMessage('Signup successful! Please log in.', 'success');
           setShowLogin(true); // Switch to login form after successful signup
           setAuthForm({ username: '', password: '' }); // Clear form
         } else {
           // If backend sends specific error details, display them
-          showCustomMessage(`Signup failed: ${signupResponse.data?.detail || signupResponse.data?.message || 'Unknown error during signup.'}`);
+          showCustomMessage(`Signup failed: ${signupResponse.data?.detail || signupResponse.data?.message || 'Unknown error during signup.'}`, 'error');
         }
       } else {
         // Login Logic using axios: Directly request tokens
@@ -99,23 +127,23 @@ const App = () => {
           setIsAuthenticated(true);
           setUser({ username: authForm.username });
           fetchThreads(); // Fetch chat threads after successful login
-          showCustomMessage('Login successful!'); // Indicate success
+          showCustomMessage('Login successful!', 'success'); // Indicate success
         } else {
           // This block might not be reached if axios throws an error for non-2xx status
-          showCustomMessage('Login failed. Please check your credentials.');
+          showCustomMessage('Login failed. Please check your credentials.', 'error');
         }
       }
     } catch (error) {
       console.error('Authentication error:', error);
       if (error.response) {
         // Server responded with a status code outside of 2xx range
-        showCustomMessage(`Authentication failed: ${error.response.data?.detail || error.response.data?.message || error.message}`);
+        showCustomMessage(`Authentication failed: ${error.response.data?.detail || error.response.data?.message || error.message}`, 'error');
       } else if (error.request) {
         // Request was made but no response received (e.g., network error, backend down)
-        showCustomMessage('Network error. Please ensure the backend is running and accessible.');
+        showCustomMessage('Network error. Please ensure the backend is running and accessible.', 'error');
       } else {
         // Something happened in setting up the request that triggered an Error
-        showCustomMessage('An unexpected error occurred during authentication. Please try again.');
+        showCustomMessage('An unexpected error occurred during authentication. Please try again.', 'error');
       }
     } finally {
       setIsLoading(false); // Always stop loading state
@@ -146,7 +174,7 @@ const App = () => {
       if (error.response && error.response.status === 401) {
         handleTokenRefresh();
       } else {
-        showCustomMessage(`Error fetching threads: ${error.response?.data?.detail || error.message}`);
+        showCustomMessage(`Error fetching threads: ${error.response?.data?.detail || error.message}`, 'error');
       }
     }
   };
@@ -198,7 +226,7 @@ const App = () => {
       if (error.response && error.response.status === 401) {
         handleTokenRefresh();
       } else {
-        showCustomMessage(`Error fetching messages: ${error.response?.data?.detail || error.message}`);
+        showCustomMessage(`Error fetching messages: ${error.response?.data?.detail || error.message}`, 'error');
       }
     } finally {
       setIsLoadingMessages(false); // End loading messages
@@ -239,7 +267,7 @@ const App = () => {
       if (error.response && error.response.status === 401) {
         handleTokenRefresh();
       } else {
-        showCustomMessage(`Failed to create new chat: ${error.response?.data?.detail || error.message}`);
+        showCustomMessage(`Failed to create new chat: ${error.response?.data?.detail || error.message}`, "error");
       }
     }
   };
@@ -268,7 +296,7 @@ const App = () => {
       if (error.response && error.response.status === 401) {
         handleTokenRefresh();
       } else {
-        showCustomMessage(`Error deleting thread: ${error.response?.data?.detail || error.message}`);
+        showCustomMessage(`Error deleting thread: ${error.response?.data?.detail || error.message}`, "error");
       }
     }
   };
@@ -350,7 +378,7 @@ const App = () => {
       if (error.response && error.response.status === 401) {
         handleTokenRefresh();
       } else {
-        showCustomMessage(`Error sending message: ${error.response?.data?.detail || error.message}`);
+        showCustomMessage(`Error sending message: ${error.response?.data?.detail || error.message}`, "error");
       }
     } finally {
       setIsLoading(false); // Hide loading indicator for sending message
@@ -397,7 +425,7 @@ const App = () => {
     setThreads([]);
     setMessages([]);
     setActiveThread(null);
-    showCustomMessage('You have been logged out.'); // This alert is now only called when explicitly logging out or refresh fails.
+    showCustomMessage('You have been logged out.', "info"); // This alert is now only called when explicitly logging out or refresh fails.
   };
 
   // Basic markdown-like formatting for message content

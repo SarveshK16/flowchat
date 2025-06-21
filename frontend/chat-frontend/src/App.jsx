@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Plus, Trash2, Sun, Moon, MessageCircle, User, Lock, Eye, EyeOff } from 'lucide-react';
+import { Send, Plus, Trash2, Sun, Moon, MessageCircle, User, Lock, Eye, EyeOff, Menu, X } from 'lucide-react';
 import axios from 'axios'; 
 import Toastify from 'toastify-js';
 import 'toastify-js/src/toastify.css';
@@ -19,7 +19,8 @@ const App = () => {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false); 
   const [user, setUser] = useState(null); 
   const [showPassword, setShowPassword] = useState(false);
-  
+  const [showSidebar, setShowSidebar] = useState(false)
+
   const [authForm, setAuthForm] = useState({
     username: '',
     password: '',
@@ -84,16 +85,15 @@ const App = () => {
         color: toastColorClass === 'text-gray-800' ? '#333' : '#fff', 
       },
       className: `font-inter ${toastColorClass}`,
-      onClick: function(){} // Callback after click
+      onClick: function(){} 
     }).showToast();
   };
 
   // Handles both login and signup based on the isSignup flag
   const handleAuth = async (isSignup = false) => {
-    setIsLoading(true); // Set loading state for auth operations
+    setIsLoading(true); 
     try {
       if (isSignup) {
-        // Signup Logic using axios
         const signupResponse = await axios.post(`${API_BASE}/signup/`, {
           username: authForm.username,
           password: authForm.password,
@@ -101,14 +101,12 @@ const App = () => {
 
         if (signupResponse.status === 200 || signupResponse.status === 201) {
           showCustomMessage('Signup successful! Please log in.', 'success');
-          setShowLogin(true); // Switch to login form after successful signup
+          setShowLogin(true); 
           setAuthForm({ username: '', password: '' }); // Clear form
         } else {
-          // If backend sends specific error details, display them
           showCustomMessage(`Signup failed: ${signupResponse.data?.detail || signupResponse.data?.message || 'Unknown error during signup.'}`, 'error');
         }
       } else {
-        // Login Logic using axios: Directly request tokens
         const loginResponse = await axios.post(`${API_BASE}/token/`, { 
           username: authForm.username,
           password: authForm.password
@@ -118,35 +116,30 @@ const App = () => {
           }
         });
 
-        // Check for successful login (e.g., status 200 OK)
         if (loginResponse.status === 200) {
-          const data = loginResponse.data; // Axios automatically parses JSON into .data
+          const data = loginResponse.data; 
           localStorage.setItem('access_token', data.access);
           localStorage.setItem('refresh_token', data.refresh);
-          localStorage.setItem('username', authForm.username); // Store username for display
+          localStorage.setItem('username', authForm.username); 
           setIsAuthenticated(true);
           setUser({ username: authForm.username });
-          fetchThreads(); // Fetch chat threads after successful login
-          showCustomMessage('Login successful!', 'success'); // Indicate success
+          fetchThreads(); 
+          showCustomMessage('Login successful!', 'success'); 
         } else {
-          // This block might not be reached if axios throws an error for non-2xx status
           showCustomMessage('Login failed. Please check your credentials.', 'error');
         }
       }
     } catch (error) {
       console.error('Authentication error:', error);
       if (error.response) {
-        // Server responded with a status code outside of 2xx range
         showCustomMessage(`Authentication failed: ${error.response.data?.detail || error.response.data?.message || error.message}`, 'error');
       } else if (error.request) {
-        // Request was made but no response received (e.g., network error, backend down)
         showCustomMessage('Network error. Please ensure the backend is running and accessible.', 'error');
       } else {
-        // Something happened in setting up the request that triggered an Error
         showCustomMessage('An unexpected error occurred during authentication. Please try again.', 'error');
       }
     } finally {
-      setIsLoading(false); // Always stop loading state
+      setIsLoading(false);
     }
   };
 
@@ -154,9 +147,8 @@ const App = () => {
   const fetchThreads = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      if (!token) return; // Exit if no token
+      if (!token) return;
 
-      // Corrected endpoint for fetching threads
       const response = await axios.get(`${API_BASE}/threads/`, { 
         headers: {
           'Authorization': `Bearer ${token}`
@@ -166,7 +158,6 @@ const App = () => {
       if (response.status === 200) {
         setThreads(response.data);
       } else if (response.status === 401) {
-        // Token expired or invalid, attempt refresh
         handleTokenRefresh();
       }
     } catch (error) {
@@ -185,9 +176,9 @@ const App = () => {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      setIsLoadingMessages(true); // Start loading messages
-      setMessages([]); // Clear existing messages immediately for better UX
-      setActiveThread(threadId); // Set active thread immediately
+      setIsLoadingMessages(true); 
+      setMessages([]); 
+      setActiveThread(threadId); 
 
       const response = await axios.get(`${API_BASE}/threads/${threadId}/messages`, {
         headers: {
@@ -196,24 +187,19 @@ const App = () => {
       });
 
       if (response.status === 200) {
-        // Transform the incoming data to match the expected format { role, content, timestamp }
-        // Assuming your ChatMessage model and serializer return 'message' for user and 'response' for AI
         const transformedMessages = response.data.flatMap(chatMessage => {
             const msgs = [];
-            // Assuming chatMessage.message is the user's message
             if (chatMessage.message) {
                 msgs.push({
                     role: 'user',
                     content: chatMessage.message,
-                    timestamp: chatMessage.timestamp // Assuming timestamp is on ChatMessage
+                    timestamp: chatMessage.timestamp 
                 });
             }
-            // Assuming chatMessage.response is the AI's response
             if (chatMessage.response) {
                 msgs.push({
                     role: 'assistant',
                     content: chatMessage.response,
-                    // Use the same timestamp or a separate one if backend provides
                     timestamp: chatMessage.timestamp 
                 });
             }
@@ -229,7 +215,7 @@ const App = () => {
         showCustomMessage(`Error fetching messages: ${error.response?.data?.detail || error.message}`, 'error');
       }
     } finally {
-      setIsLoadingMessages(false); // End loading messages
+      setIsLoadingMessages(false); 
     }
   };
 
@@ -239,26 +225,20 @@ const App = () => {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      // This will send a POST request with an empty body to /api/threads/
-      // The backend (thread_list_create_view) should then create a new ChatThread
-      const response = await axios.post(`${API_BASE}/threads/`, {}, { // Capture the response to get new thread ID if needed
+      const response = await axios.post(`${API_BASE}/threads/`, {}, { 
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         }
       });
       
-      // After successfully creating a thread, fetch the updated list of threads
-      // This will refresh the sidebar and potentially select the new thread if the backend returns its ID
       fetchThreads(); 
       
-      // If the backend returns the new thread's ID, you can activate it immediately:
       if (response.status === 201 && response.data && response.data.id) {
           setActiveThread(response.data.id);
-          setMessages([]); // Clear messages for the new thread
+          setMessages([]); 
       } else {
-          // If backend didn't return ID or status wasn't 201, just clear messages
-          setActiveThread(null); // Clear active thread to reset chat area for new thread
+          setActiveThread(null); 
           setMessages([]); 
       }
 
@@ -284,11 +264,11 @@ const App = () => {
         }
       });
 
-      if (response.status === 204) { // 204 No Content is typical for successful DELETE
-        setThreads(threads.filter(t => t.id !== threadId)); // Remove deleted thread from state
+      if (response.status === 204) { 
+        setThreads(threads.filter(t => t.id !== threadId)); 
         if (activeThread === threadId) {
-          setActiveThread(null); // Clear active thread if deleted
-          setMessages([]); // Clear messages if active thread deleted
+          setActiveThread(null); 
+          setMessages([]); 
         }
       }
     } catch (error) {
@@ -321,14 +301,12 @@ const App = () => {
         );
       }
     } catch (error) {
-      console.error('Error fetching thread title:', error);
-      // Handle error, maybe show a message
+      showCustomMessage(`Error fetching thread title: ${error.response?.data?.detail || error.message}`, "error")
     }
   };
 
-  // Sends a message to the active chat thread
   const sendMessage = async () => {
-    if (!currentMessage.trim() || !activeThread) return; // Prevent sending empty messages or if no active thread
+    if (!currentMessage.trim() || !activeThread) return;
 
     const userMessage = {
       role: 'user',
@@ -336,9 +314,9 @@ const App = () => {
       timestamp: new Date().toISOString()
     };
 
-    setMessages(prev => [...prev, userMessage]); // Add user's message to display immediately
-    setCurrentMessage(''); // Clear input field
-    setIsLoading(true); // Show loading indicator for sending message
+    setMessages(prev => [...prev, userMessage]); 
+    setCurrentMessage(''); 
+    setIsLoading(true); 
 
     try {
       const token = localStorage.getItem('access_token');
@@ -363,10 +341,8 @@ const App = () => {
           content: aiResponseContent,
           timestamp: new Date().toISOString()
         };
-        setMessages(prev => [...prev, aiMessage]); // Add AI's message to display
+        setMessages(prev => [...prev, aiMessage]); 
 
-        // Check if the current thread's title is empty, and if so, fetch it.
-        // This ensures the sidebar refreshes with the new title after the first message
         const currentThreadInState = threads.find(t => t.id === activeThread);
         if (currentThreadInState && currentThreadInState.title === '') {
           fetchThreadTitle(activeThread);
@@ -381,7 +357,7 @@ const App = () => {
         showCustomMessage(`Error sending message: ${error.response?.data?.detail || error.message}`, "error");
       }
     } finally {
-      setIsLoading(false); // Hide loading indicator for sending message
+      setIsLoading(false); 
     }
   };
 
@@ -390,28 +366,25 @@ const App = () => {
     try {
       const refreshToken = localStorage.getItem('refresh_token');
       if (!refreshToken) {
-        logout(); // No refresh token, force logout
+        logout(); 
         return;
       }
       
-      // Call your token refresh endpoint
-      const refreshResponse = await axios.post(`${API_BASE}/token/refresh/`, {
+      const refreshResponse = await axios.post(`${API_BASE}/token/`, {
         refresh: refreshToken
       });
 
       if (refreshResponse.status === 200) {
         const data = refreshResponse.data;
         localStorage.setItem('access_token', data.access);
-        // If your backend issues new refresh tokens, update it too:
-        // localStorage.setItem('refresh_token', data.refresh); 
-        // Re-fetch threads or retry original failed request
+        localStorage.setItem('refresh_token', data.refresh); 
         fetchThreads(); 
       } else {
-        logout(); // Refresh failed, force logout
+        logout(); 
       }
     } catch (error) {
       console.error('Token refresh error:', error);
-      logout(); // Network or API error during refresh, force logout
+      logout(); 
     }
   };
 
@@ -419,22 +392,22 @@ const App = () => {
   const logout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
-    localStorage.removeItem('username'); // Clear stored username
+    localStorage.removeItem('username'); 
     setIsAuthenticated(false);
     setUser(null);
     setThreads([]);
     setMessages([]);
     setActiveThread(null);
-    showCustomMessage('You have been logged out.', "info"); // This alert is now only called when explicitly logging out or refresh fails.
+    showCustomMessage('You have been logged out.', "info");
   };
 
   // Basic markdown-like formatting for message content
   const formatMessage = (content) => {
     return content
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold text
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')             // Italic text
-      .replace(/`(.*?)`/g, '<code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">$1</code>') // Inline code
-      .replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-100 dark:bg-gray-800 p-3 rounded mt-2 mb-2 overflow-x-auto"><code>$1</code></pre>'); // Code blocks
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') 
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')             
+      .replace(/`(.*?)`/g, '<code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">$1</code>') 
+      .replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-100 dark:bg-gray-800 p-3 rounded mt-2 mb-2 overflow-x-auto"><code>$1</code></pre>'); 
   };
 
   // Conditional rendering for authentication state
@@ -443,9 +416,9 @@ const App = () => {
       <div className={`min-h-screen flex items-center justify-center font-inter ${
         darkMode 
           ? 'bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900' 
-          : 'bg-gradient-to-br from-purple-50 to-pink-50' /* Pearl white to soft pink/purple for light mode */
+          : 'bg-gradient-to-br from-purple-50 to-pink-50'
       }`}>
-        <div className="max-w-md w-full space-y-8 p-8 backdrop-blur-xl border border-white/40 rounded-3xl shadow-2xl">
+        <div className="max-w-md md:w-full space-y-8 p-8 backdrop-blur-xl border border-white/40 rounded-3xl shadow-2xl">
           <div className="text-center">
             <div className="flex items-center justify-center mb-4">
               <MessageCircle className={`h-12 w-12 ${darkMode ? 'text-pink-400' : 'text-purple-600'}`} />
@@ -559,25 +532,54 @@ const App = () => {
   }
 
   return (
-    <div className={`h-screen flex font-inter ${
-      darkMode 
-        ? 'bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900' 
-        : 'bg-gradient-to-br from-purple-50 to-pink-50' /* Pearl white to soft pink/purple for light mode */
-    }`}>
-      {/* Sidebar */}
-      <div className={`w-80 ${
-        darkMode 
-          ? 'bg-white/10 backdrop-blur-xl border border-white/20' /* Dark mode with thin border */
-          : 'bg-white/80 backdrop-blur-xl border border-gray-300' /* Light mode with thin gray border */
-      } flex flex-col m-4 rounded-3xl shadow-2xl`}>
+  <div className={`h-screen flex font-inter ${
+    darkMode 
+      ? 'bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900' 
+      : 'bg-gradient-to-br from-purple-50 to-pink-50'
+  }`}>
+    
+    {/* Mobile Overlay Background - Only visible when sidebar is open */}
+    {showSidebar && (
+      <div 
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden"
+        onClick={() => setShowSidebar(false)}
+      />
+    )}
+
+    {/* Mobile Sidebar Toggle Button - Only visible when sidebar is closed */}
+    {!showSidebar && (
+      <button
+        onClick={() => setShowSidebar(true)}
+        className={`md:hidden fixed p-2 rounded-xl ${
+          darkMode
+            ? 'bg-white/10 text-white hover:bg-white/20'
+            : 'bg-white/70 text-gray-800 hover:bg-white/80'
+        } backdrop-blur-sm transition-all duration-200 transform hover:scale-105 shadow-lg border ${
+          darkMode ? 'border-white/20' : 'border-white/40'
+        }`}
+        aria-label="Open sidebar"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+    )}
+
+    {/* Sidebar */}
+    <div className={`fixed inset-y-0 left-0 w-80 z-40 flex flex-col transform transition-transform duration-300 ease-in-out ${
+      showSidebar ? 'translate-x-0' : '-translate-x-full'
+    } md:relative md:translate-x-0 md:flex md:w-80 md:flex-shrink-0 ${
+      darkMode
+        ? 'bg-white/10 backdrop-blur-xl border border-white/20'
+        : 'bg-white/80 backdrop-blur-xl border border-gray-300'
+    } md:m-4 md:rounded-3xl md:shadow-2xl`}>
+      <div className="p-4 flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-white/10">
+        <div className="border-b border-white/10 pb-6 mb-2">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
               <div className={`p-2 rounded-xl ${
-                darkMode 
-                  ? 'bg-gradient-to-br from-purple-500 to-pink-500' 
-                  : 'bg-gradient-to-br from-pink-500 to-purple-500' /* Light mode icon background gradient */
+                darkMode
+                  ? 'bg-gradient-to-br from-purple-500 to-pink-500'
+                  : 'bg-gradient-to-br from-pink-500 to-purple-500'
               }`}>
                 <MessageCircle className="h-6 w-6 text-white" />
               </div>
@@ -586,8 +588,8 @@ const App = () => {
             <button
               onClick={() => setDarkMode(!darkMode)}
               className={`p-2 rounded-xl ${
-                darkMode 
-                  ? 'bg-white/10 text-yellow-400 hover:bg-white/20' 
+                darkMode
+                  ? 'bg-white/10 text-yellow-400 hover:bg-white/20'
                   : 'bg-white/50 text-gray-600 hover:bg-white/70'
               } backdrop-blur-sm transition-all duration-200 transform hover:scale-105`}
               aria-label="Toggle dark mode"
@@ -595,251 +597,303 @@ const App = () => {
               {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
           </div>
-          
+
           <button
-            onClick={createNewThread}
+            onClick={() => {
+              createNewThread();
+              setShowSidebar(false); 
+            }}
             className={`w-full flex items-center justify-center space-x-3 py-3 px-4 bg-gradient-to-r ${
-              darkMode 
-                ? 'from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600' 
-                : 'from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500' /* Light mode gradient button */
+              darkMode
+                ? 'from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
+                : 'from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500'
             } text-white font-medium rounded-2xl shadow-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]`}
           >
             <Plus className="h-4 w-4" />
             <span>New Chat</span>
           </button>
         </div>
-
-        {/* Threads */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {threads.length === 0 ? (
-            <p className={`text-center text-sm font-light ${darkMode ? 'text-white/50' : 'text-gray-500'} mt-8`}>
-              No conversations yet
-            </p>
-          ) : (
-            threads.map((thread) => (
-              <div
-                key={thread.id}
-                className={`flex items-center justify-between p-4 rounded-2xl cursor-pointer group transition-all duration-200 ${
-                  activeThread === thread.id 
-                    ? (darkMode 
-                        ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-sm border border-purple-500/30' 
-                        : 'bg-gradient-to-r from-pink-500/10 to-purple-500/10 backdrop-blur-sm border border-pink-500/20' /* Light mode active thread gradient */
-                      )
-                    : (darkMode 
-                        ? 'hover:bg-white/5 backdrop-blur-sm' 
-                        : 'hover:bg-white/50 backdrop-blur-sm'
-                      )
-                }`}
-                onClick={() => fetchThreadMessages(thread.id)}
-              >
-                <span className={`text-sm font-light truncate ${
-                  activeThread === thread.id 
-                    ? (darkMode ? 'text-white' : 'text-gray-800')
-                    : (darkMode ? 'text-white/80' : 'text-gray-700')
-                }`}>
-                  {thread.title || `Thread ${thread.id}`}
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent thread selection when deleting
-                    deleteThread(thread.id);
-                  }}
-                  className={`opacity-0 group-hover:opacity-100 p-2 rounded-xl ${
-                    darkMode 
-                      ? 'hover:bg-white/10 text-white/60 hover:text-white/80' 
-                      : 'hover:bg-white/50 text-gray-500 hover:text-gray-700'
-                  } transition-all duration-200`}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* User info and logout */}
-        <div className="p-6 border-t border-white/10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className={`w-10 h-10 rounded-xl ${
-                darkMode 
-                  ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm border border-white/10' 
-                  : 'bg-gradient-to-br from-pink-500/10 to-purple-500/10 backdrop-blur-sm border border-white/20' /* Light mode user icon background gradient */
-              } flex items-center justify-center`}>
-                <User className={`h-5 w-5 ${darkMode ? 'text-white/70' : 'text-gray-600'}`} />
-              </div>
-              <span className={`font-light ${darkMode ? 'text-white/80' : 'text-gray-700'}`}>
-                {user?.username || 'Guest'}
-              </span>
-            </div>
-            <button
-              onClick={logout}
-              className={`text-sm font-light ${darkMode ? 'text-white/60 hover:text-white/80' : 'text-gray-500 hover:text-gray-700'} transition-colors duration-200`}
+      </div>
+      
+      {/* Threads */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        {threads.length === 0 ? (
+          <p className={`text-center text-sm font-light ${darkMode ? 'text-white/50' : 'text-gray-500'} mt-8`}>
+            No conversations yet
+          </p>
+        ) : (
+          threads.map((thread) => (
+            <div
+              key={thread.id}
+              className={`flex items-center justify-between p-4 rounded-2xl cursor-pointer group transition-all duration-200 ${
+                activeThread === thread.id 
+                  ? (darkMode 
+                      ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-sm border border-purple-500/30' 
+                      : 'bg-gradient-to-r from-pink-500/10 to-purple-500/10 backdrop-blur-sm border border-pink-500/20'
+                    )
+                  : (darkMode 
+                      ? 'hover:bg-white/5 backdrop-blur-sm' 
+                      : 'hover:bg-white/50 backdrop-blur-sm'
+                    )
+              }`}
+              onClick={() => {
+                fetchThreadMessages(thread.id);
+                setShowSidebar(false); 
+              }}
             >
-              Logout
-            </button>
-          </div>
-        </div>
+              <span className={`text-sm font-light truncate ${
+                activeThread === thread.id 
+                  ? (darkMode ? 'text-white' : 'text-gray-800')
+                  : (darkMode ? 'text-white/80' : 'text-gray-700')
+              }`}>
+                {thread.title || `Thread ${thread.id}`}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteThread(thread.id);
+                }}
+                className={`opacity-0 group-hover:opacity-100 p-2 rounded-xl ${
+                  darkMode 
+                    ? 'hover:bg-white/10 text-white/60 hover:text-white/80' 
+                    : 'hover:bg-white/50 text-gray-500 hover:text-gray-700'
+                } transition-all duration-200`}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))
+        )}
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col m-4 ml-0">
-        {activeThread ? (
-          <div className={`flex-1 flex flex-col ${
-            darkMode 
-              ? 'bg-white/5 backdrop-blur-xl border border-white/10' /* Dark mode with thin border */
-              : 'bg-white/60 backdrop-blur-xl border border-gray-300' /* Light mode with thin gray border */
-          } rounded-3xl shadow-2xl overflow-hidden`}>
-            {/* Chat Header */}
-            <div className="p-6 border-b border-white/10 flex items-center justify-between">
-              <h2 className={`text-lg font-light ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                {threads.find(t => t.id === activeThread)?.title || `Thread ${activeThread}`}
-              </h2>
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className={`px-4 py-2 rounded-xl text-sm font-light ${
-                  darkMode 
-                    ? 'bg-white/10 text-white border-white/20 backdrop-blur-sm' 
-                    : 'bg-white/60 text-gray-800 border-white/40 backdrop-blur-sm'
-                } border focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-200`}
-              >
-                {models.map(model => (
-                  <option key={model} value={model}>{model}</option>
-                ))}
-              </select>
+      {/* User info and logout */}
+      <div className="p-6 border-t border-white/10">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className={`w-10 h-10 rounded-xl ${
+              darkMode 
+                ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm border border-white/10' 
+                : 'bg-gradient-to-br from-pink-500/10 to-purple-500/10 backdrop-blur-sm border border-white/20'
+            } flex items-center justify-center`}>
+              <User className={`h-5 w-5 ${darkMode ? 'text-white/70' : 'text-gray-600'}`} />
             </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {isLoadingMessages ? (
-                <div className="flex justify-center items-center h-full">
-                  <div className="flex space-x-2">
-                    <div className={`w-3 h-3 rounded-full ${darkMode ? 'bg-purple-400' : 'bg-pink-400'} animate-bounce`}></div>
-                    <div className={`w-3 h-3 rounded-full ${darkMode ? 'bg-pink-400' : 'bg-purple-400'} animate-bounce`} style={{animationDelay: '0.1s'}}></div>
-                    <div className={`w-3 h-3 rounded-full ${darkMode ? 'bg-purple-400' : 'bg-pink-400'} animate-bounce`} style={{animationDelay: '0.2s'}}></div>
-                  </div>
-                </div>
-              ) : messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <MessageCircle className={`h-16 w-16 mx-auto mb-4 ${darkMode ? 'text-white/30' : 'text-gray-400'}`} />
-                    <p className={`font-light ${darkMode ? 'text-white/50' : 'text-gray-500'}`}>
-                      Start your conversation
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                messages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`max-w-2xl px-6 py-4 rounded-3xl shadow-lg backdrop-blur-sm ${
-                        message.role === 'user'
-                          ? (darkMode 
-                              ? 'bg-gradient-to-r from-purple-500/80 to-pink-500/80 border border-purple-500/30 text-white' 
-                              : 'bg-gradient-to-r from-pink-400/80 to-purple-400/80 border border-pink-400/30 text-white' /* Light mode user message gradient */
-                            )
-                          : (darkMode 
-                              ? 'bg-white/10 border border-white/20 text-white/90' 
-                              : 'bg-white/70 border border-white/40 text-gray-800' /* Light mode assistant message glass */
-                            )
-                      }`}
-                    >
-                      <div 
-                        className="font-light"
-                        dangerouslySetInnerHTML={{ 
-                          __html: formatMessage(message.content) 
-                        }} 
-                      />
-                    </div>
-                  </div>
-                ))
-              )}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className={`px-6 py-4 rounded-3xl ${
-                    darkMode 
-                      ? 'bg-white/10 backdrop-blur-sm border border-white/20' 
-                      : 'bg-white/70 backdrop-blur-sm border border-white/40'
-                  }`}>
-                    <div className="flex space-x-2">
-                      <div className={`w-2 h-2 rounded-full ${darkMode ? 'bg-purple-400' : 'bg-pink-400'} animate-bounce`}></div>
-                      <div className={`w-2 h-2 rounded-full ${darkMode ? 'bg-pink-400' : 'bg-purple-400'} animate-bounce`} style={{animationDelay: '0.1s'}}></div>
-                      <div className={`w-2 h-2 rounded-full ${darkMode ? 'bg-purple-400' : 'bg-pink-400'} animate-bounce`} style={{animationDelay: '0.2s'}}></div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Message Input */}
-            <div className="p-6 border-t border-white/10">
-              <div className="flex space-x-4">
-                <input
-                  type="text"
-                  value={currentMessage}
-                  onChange={(e) => setCurrentMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                  placeholder="Type your message..."
-                  className={`flex-1 px-6 py-4 ${
-                    darkMode 
-                      ? 'bg-white/10 border-white/20 text-white placeholder-white/50' 
-                      : 'bg-white/60 border-white/40 text-gray-800 placeholder-gray-500'
-                  } border backdrop-blur-sm rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 font-light transition-all duration-200`}
-                  disabled={isLoading}
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={isLoading || !currentMessage.trim()}
-                  className={`px-6 py-4 bg-gradient-to-r ${
-                    darkMode 
-                      ? 'from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600' 
-                      : 'from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500' /* Light mode gradient button */
-                  } text-white rounded-2xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95`}
-                >
-                  <Send className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
+            <span className={`font-light ${darkMode ? 'text-white/80' : 'text-gray-700'}`}>
+              {user?.username || 'Guest'}
+            </span>
           </div>
-        ) : (
-          <div className={`flex-1 flex items-center justify-center ${
+          <button
+            onClick={logout}
+            className={`text-sm font-light ${darkMode ? 'text-white/60 hover:text-white/80' : 'text-gray-500 hover:text-gray-700'} transition-colors duration-200`}
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {/* Main Chat Area - Full screen on mobile, with sidebar space on desktop */}
+    <div className="flex-1 flex flex-col md:m-4 md:ml-0">
+      {activeThread ? (
+        <div className={`flex-1 flex flex-col ${
+          darkMode 
+            ? 'md:bg-white/5 md:backdrop-blur-xl md:border md:border-white/10 bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900'
+            : 'md:bg-white/60 md:backdrop-blur-xl md:border md:border-gray-300 bg-gradient-to-br from-purple-50 to-pink-50'
+        } md:rounded-3xl md:shadow-2xl overflow-hidden`}>
+          
+          {/* FlowChat Header - Always visible on mobile, with hamburger menu */}
+
+          <div className={`md:hidden flex items-center justify-between px-4 py-3 ${
             darkMode 
-              ? 'bg-white/5 backdrop-blur-xl border border-white/10' /* Dark mode with thin border */
-              : 'bg-white/60 backdrop-blur-xl border border-gray-300' /* Light mode with thin gray border */
-          } rounded-3xl shadow-2xl`}>
-            <div className="text-center">
-              <div className={`p-6 rounded-3xl ${
+              ? 'bg-white/5 backdrop-blur-xl border-b border-white/10' 
+              : 'bg-white/70 backdrop-blur-xl border-b border-gray-200'
+          }`}>
+            {/* Left: Hamburger */}
+            <button
+              onClick={() => setShowSidebar(true)}
+              className={`p-2 rounded-xl ${
+                darkMode
+                  ? 'bg-white/10 text-white hover:bg-white/20'
+                  : 'bg-white/50 text-gray-800 hover:bg-white/70'
+              } backdrop-blur-sm transition-all duration-200`}
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            
+            {/* Center: Logo + Name */}
+            <div className="flex items-center space-x-2">
+              <MessageCircle className={`h-7 w-7 ${darkMode ? 'text-pink-400' : 'text-purple-600'}`} />
+              <span className={`text-base font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                FlowChat
+              </span>
+            </div>
+            
+            {/* Right: Model Selector */}
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className={`px-2 py-1 rounded-lg text-sm min-w-[10rem] sm:min-w-[8rem] whitespace-nowrap truncate ${
                 darkMode 
-                  ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm border border-white/10' 
-                  : 'bg-gradient-to-br from-pink-500/10 to-purple-500/10 backdrop-blur-sm border border-white/20' /* Light mode welcome icon background */
-              } mb-6 mx-auto w-fit`}>
-                <MessageCircle className={`h-12 w-12 ${darkMode ? 'text-white/70' : 'text-gray-600'}`} />
+                  ? 'bg-white/10 text-white border-white/20' 
+                  : 'bg-white/60 text-gray-800 border-white/40'
+              } border backdrop-blur-sm`}
+            >
+              {models.map(model => (
+                <option key={model} value={model}>{model}</option>
+              ))}
+            </select>
+          </div>
+
+
+          {/* Chat Header - Desktop only */}
+          <div className="hidden md:flex p-6 border-b border-white/10 items-center justify-between">
+            <h2 className={`text-lg font-light ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+              {threads.find(t => t.id === activeThread)?.title || `Thread ${activeThread}`}
+            </h2>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className={`px-4 py-2 rounded-xl text-sm font-light ${
+                darkMode 
+                  ? 'bg-white/10 text-white border-white/20 backdrop-blur-sm' 
+                  : 'bg-white/60 text-gray-800 border-white/40 backdrop-blur-sm'
+              } border focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-200`}
+            >
+              {models.map(model => (
+                <option key={model} value={model}>{model}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {isLoadingMessages ? (
+              <div className="flex justify-center items-center h-full">
+                <div className="flex space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${darkMode ? 'bg-purple-400' : 'bg-pink-400'} animate-bounce`}></div>
+                  <div className={`w-3 h-3 rounded-full ${darkMode ? 'bg-pink-400' : 'bg-purple-400'} animate-bounce`} style={{animationDelay: '0.1s'}}></div>
+                  <div className={`w-3 h-3 rounded-full ${darkMode ? 'bg-purple-400' : 'bg-pink-400'} animate-bounce`} style={{animationDelay: '0.2s'}}></div>
+                </div>
               </div>
-              <h3 className={`text-2xl font-light mb-3 ${darkMode ? 'text-white' : 'text-gray-800'}`}>Welcome to FlowChat</h3>
-              <p className={`font-light mb-6 ${darkMode ? 'text-white/60' : 'text-gray-600'}`}>
-                Create a new chat to get started
-              </p>
+            ) : messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <MessageCircle className={`h-16 w-16 mx-auto mb-4 ${darkMode ? 'text-white/30' : 'text-gray-400'}`} />
+                  <p className={`font-light ${darkMode ? 'text-white/50' : 'text-gray-500'}`}>
+                    Start your conversation
+                  </p>
+                </div>
+              </div>
+            ) : (
+              messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-2xl px-6 py-4 rounded-3xl shadow-lg backdrop-blur-sm ${
+                      message.role === 'user'
+                        ? (darkMode 
+                            ? 'bg-gradient-to-r from-purple-500/80 to-pink-500/80 border border-purple-500/30 text-white' 
+                            : 'bg-gradient-to-r from-pink-400/80 to-purple-400/80 border border-pink-400/30 text-white'
+                          )
+                        : (darkMode 
+                            ? 'bg-white/10 border border-white/20 text-white/90' 
+                            : 'bg-white/70 border border-white/40 text-gray-800'
+                          )
+                    }`}
+                  >
+                    <div 
+                      className="font-light"
+                      dangerouslySetInnerHTML={{ 
+                        __html: formatMessage(message.content) 
+                      }} 
+                    />
+                  </div>
+                </div>
+              ))
+            )}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className={`px-6 py-4 rounded-3xl ${
+                  darkMode 
+                    ? 'bg-white/10 backdrop-blur-sm border border-white/20' 
+                    : 'bg-white/70 backdrop-blur-sm border border-white/40'
+                }`}>
+                  <div className="flex space-x-2">
+                    <div className={`w-2 h-2 rounded-full ${darkMode ? 'bg-purple-400' : 'bg-pink-400'} animate-bounce`}></div>
+                    <div className={`w-2 h-2 rounded-full ${darkMode ? 'bg-pink-400' : 'bg-purple-400'} animate-bounce`} style={{animationDelay: '0.1s'}}></div>
+                    <div className={`w-2 h-2 rounded-full ${darkMode ? 'bg-purple-400' : 'bg-pink-400'} animate-bounce`} style={{animationDelay: '0.2s'}}></div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Message Input */}
+          <div className="p-6 md:border-t border-white/10">
+            <div className="flex space-x-4">
+              <input
+                type="text"
+                value={currentMessage}
+                onChange={(e) => setCurrentMessage(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                placeholder="Type your message..."
+                className={`flex-1 px-6 py-4 ${
+                  darkMode 
+                    ? 'bg-white/10 border-white/20 text-white placeholder-white/50' 
+                    : 'bg-white/60 border-white/40 text-gray-800 placeholder-gray-500'
+                } border backdrop-blur-sm rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 font-light transition-all duration-200`}
+                disabled={isLoading}
+              />
               <button
-                onClick={createNewThread}
-                className={`px-6 py-3 bg-gradient-to-r ${
+                onClick={sendMessage}
+                disabled={isLoading || !currentMessage.trim()}
+                className={`px-6 py-4 bg-gradient-to-r ${
                   darkMode 
                     ? 'from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600' 
-                    : 'from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500' /* Light mode gradient button */
-                } text-white font-medium rounded-2xl shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95`}
+                    : 'from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500'
+                } text-white rounded-2xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95`}
               >
-                Start Chatting
+                <Send className="h-5 w-5" />
               </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className={`flex-1 flex items-center justify-center ${
+          darkMode 
+            ? 'md:bg-white/5 md:backdrop-blur-xl md:border md:border-white/10 bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900'
+            : 'md:bg-white/60 md:backdrop-blur-xl md:border md:border-gray-300 bg-gradient-to-br from-purple-50 to-pink-50'
+        } md:rounded-3xl md:shadow-2xl`}>
+          <div className="text-center">
+            <div className={`p-6 rounded-3xl ${
+              darkMode 
+                ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm border border-white/10' 
+                : 'bg-gradient-to-br from-pink-500/10 to-purple-500/10 backdrop-blur-sm border border-white/20'
+            } mb-6 mx-auto w-fit`}>
+              <MessageCircle className={`h-12 w-12 ${darkMode ? 'text-white/70' : 'text-gray-600'}`} />
+            </div>
+            <h3 className={`text-2xl font-light mb-3 ${darkMode ? 'text-white' : 'text-gray-800'}`}>Welcome to FlowChat</h3>
+            <p className={`font-light mb-6 ${darkMode ? 'text-white/60' : 'text-gray-600'}`}>
+              Create a new chat to get started
+            </p>
+            <button
+              onClick={createNewThread}
+              className={`px-6 py-3 bg-gradient-to-r ${
+                darkMode 
+                  ? 'from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600' 
+                  : 'from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500'
+              } text-white font-medium rounded-2xl shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95`}
+            >
+              Start Chatting
+            </button>
+          </div>
+        </div>
+      )}
     </div>
-  );
+  </div>
+);
 };
 
 export default App;

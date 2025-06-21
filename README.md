@@ -2,6 +2,10 @@
 
 A full-stack AI-powered chat application built using Django REST Framework (DRF) for the backend and React (Vite + Tailwind) for the frontend. Users can authenticate, create chat threads, talk to LLMs, and manage chat history — all through a clean, modern UI.
 
+## 💻 Live Link 
+
+Try it out : https://flowchat-frontend.onrender.com
+
 ## ✨ Features
 
 ### ✅ Authentication
